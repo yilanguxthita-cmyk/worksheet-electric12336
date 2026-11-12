@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="th"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>ประมูลเครื่องใช้ไฟฟ้า</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#fff7fb;--card:#fff;--text:#3b3550;--muted:#6f6888;--line:#eadff5;--btn:#6f62d8;--btntxt:#fff;--ok:#1f8a5b;--warn:#c2410c;--hot:#fff2c9;--sold:#d3f2e2;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1e1b2e;--card:#282439;--text:#f0ebff;--muted:#b2a9cc;--line:#3c3656;--btn:#b8adff;--btntxt:#1e1b2e;--ok:#6ee7b0;--warn:#fdba74;--hot:#56492b;--sold:#2f5a4a;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#1e1b2e;--card:#282439;--text:#f0ebff;--muted:#b2a9cc;--line:#3c3656;--btn:#b8adff;--btntxt:#1e1b2e;--ok:#6ee7b0;--warn:#fdba74;--hot:#56492b;--sold:#2f5a4a;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:17px/1.5 "Sarabun","Noto Sans Thai",system-ui,sans-serif}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:10}
+.wrap{max-width:1100px;margin:0 auto;padding:12px 16px 40px}
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding:10px 0;display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center}
+h1{margin:0;font-size:1.5rem}h2{margin:18px 0 8px;font-size:1.2rem}
+.chip{border:1px solid var(--line);background:var(--card);border-radius:99px;padding:4px 14px;font-weight:600}
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
+.card{background:var(--card);border:1px solid var(--line);border-top:7px solid var(--line);border-radius:18px;padding:14px}
+.card.open{border-top-color:#f59e0b;background:linear-gradient(var(--hot),var(--card) 45%)}
+.card.sold{border-top-color:var(--ok)}
+.top{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.bd{font-size:.82rem;color:var(--muted);white-space:nowrap}
+.lbl{color:var(--muted);font-size:.9rem;margin-top:6px}
+.price{font-size:2.3rem;font-weight:700;line-height:1.1}
+.who{font-weight:600;margin:4px 0}
+.rs{font-size:.9rem;color:var(--muted);margin:4px 0}
+.ok{color:var(--ok);font-weight:700;margin-top:8px}
+.hint{color:var(--muted);font-size:.85rem;margin:4px 0}
+input,select,textarea{width:100%;font:inherit;color:var(--text);background:var(--bg);border:1.5px solid var(--line);border-radius:10px;padding:8px 10px}
+textarea{min-height:70px;margin-top:8px}
+.brow{display:flex;gap:8px;margin-top:8px}.brow input{flex:1}
+button{font:inherit;font-weight:700;border:0;border-radius:99px;padding:8px 18px;cursor:pointer;background:var(--btn);color:var(--btntxt);margin-top:8px}
+.brow button{margin-top:0}
+button.sec{background:transparent;color:var(--text);border:1.5px solid var(--line)}
+.box{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:8px 6px;border-top:1px solid var(--line);vertical-align:top}
+tr.top1 td{background:var(--sold);font-weight:700}
+.scroll{overflow-x:auto}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--btn);color:var(--btntxt);padding:10px 20px;border-radius:99px;font-weight:700;z-index:20;max-width:90%}
+#toast:empty{display:none}
+</style></head><body>
+<div class="wrap">
+<header><h1>🔨 ประมูลเครื่องใช้ไฟฟ้า</h1><span class="chip" id="me"></span></header>
+<div id="conn" class="hint">กำลังเชื่อมต่อระบบ…</div>
+<div id="app"></div>
+</div>
+<div id="toast" role="status"></div>
+<script>
+var BUDGET=2000,STEP=10;
+var ITEMS=[["air","หม้ออบลมร้อน",500],["mw","ไมโครเวฟ",400],["fan","พัดลมตั้งพื้น",300],["mist","พัดลมไอน้ำ",350],["flask","กระติกน้ำร้อน",200],["kettle","กาน้ำร้อน",150],["rice","หม้อหุงข้าว",250],["iron","เตารีด",100]];
+var BD={wait:"⏳ ยังไม่เปิด",open:"🔥 กำลังประมูล",sold:"✅ ขายแล้ว",unsold:"⚪ ไม่มีผู้ซื้อ"};
+var $=function(i){return document.getElementById(i)};
+var db=null,TCH=false,ME=null,DR={},DA={},raf=0;
+var D={items:{},bids:[],groups:{},reasons:{}};
+try{ME=JSON.parse(localStorage.getItem("auc-me")||"null")}catch(e){ME=null}
+function esc(t){return String(t==null?"":t).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function toast(t){var e=$("toast");e.textContent=t;clearTimeout(toast._t);toast._t=setTimeout(function(){e.textContent=""},3500)}
+function itm(id,def){var d=D.items[id]||{};return{start:d.start!=null?d.start:def,status:d.status||"wait",winner:d.winner,winnerName:d.winnerName,price:d.price||0}}
+function defOf(id){return ITEMS.filter(function(i){return i[0]===id})[0][2]}
+function sortBids(id){return D.bids.filter(function(x){return x.item===id}).sort(function(a,b){return b.amount-a.amount||a.t-b.t})}
+function won(g){var s=0,l=[];ITEMS.forEach(function(i){var d=D.items[i[0]];if(d&&d.status==="sold"&&d.winner===g){s+=d.price;l.push(i[1])}});return{s:s,l:l}}
+function left(g){return BUDGET-won(g).s}
+function card(i){
+ var id=i[0],d=itm(id,i[2]),tb=sortBids(id)[0],cur=d.status==="sold"?d.price:(tb?tb.amount:d.start);
+ var h='<div class="card '+d.status+'"><div class="top"><b>'+esc(i[1])+'</b><span class="bd">'+BD[d.status]+'</span></div>';
+ h+='<div class="lbl">'+(d.status==="sold"?"ราคาที่ขายได้":tb?"ราคาประมูลตอนนี้":"ราคาเริ่มต้น")+'</div><div class="price">'+Number(cur).toLocaleString("th-TH")+' ฿</div>';
+ var who=d.status==="sold"?d.winnerName:(d.status==="open"&&tb?tb.name:"");
+ if(who)h+='<div class="who">'+(d.status==="sold"?"🏆 ผู้ชนะ: ":"👑 นำอยู่: ")+esc(who)+'</div>';
+ var lg=d.status==="sold"?d.winner:(tb&&tb.gid),rs=lg&&D.reasons[id+"_"+lg];
+ if(rs)h+='<div class="rs">“'+esc(rs.text)+'”</div>';
+ if(d.status==="open"){
+  if(!ME)h+='<div class="hint">ลงทะเบียนกลุ่มก่อนจึงจะประมูลได้</div>';
+  else if(!D.reasons[id+"_"+ME.gid])h+='<textarea id="rs_'+id+'" placeholder="เหตุผลที่กลุ่มเราอยากซื้อสินค้านี้ (ต้องเขียนก่อนจึงจะประมูลได้)">'+esc(DR[id]||"")+'</textarea><button data-act="reason" data-id="'+id+'">ส่งเหตุผล</button>';
+  else if(tb&&tb.gid===ME.gid)h+='<div class="ok">กลุ่มของคุณนำอยู่ 🎉</div>';
+  else{var mn=tb?tb.amount+STEP:d.start;h+='<div class="brow"><input id="am_'+id+'" type="number" inputmode="numeric" min="'+mn+'" step="'+STEP+'" value="'+Math.max(Number(DA[id])||0,mn)+'"><button data-act="bid" data-id="'+id+'">ประมูล</button></div><div class="hint">ขั้นต่ำ '+mn+' ฿ · เงินคงเหลือ '+left(ME.gid)+' ฿</div>'}
+ }
+ if(TCH){
+  if(d.status==="wait"||d.status==="unsold")h+='<div class="brow"><input type="number" id="st_'+id+'" data-act="start" data-id="'+id+'" value="'+d.start+'" aria-label="ราคาเริ่มต้น"><button data-act="open" data-id="'+id+'">เปิดประมูล</button></div>';
+  if(d.status==="open")h+='<button data-act="close" data-id="'+id+'">ปิดประมูลและตัดสิน</button> ';
+  if(d.status!=="wait")h+='<button class="sec" data-act="reset" data-id="'+id+'">รีเซ็ตสินค้านี้</button>';
+ }
+ return h+'</div>';
+}
+function board(){
+ var gs=Object.keys(D.groups).map(function(k){return{id:k,n:D.groups[k].name,r:D.groups[k].room,l:left(k),w:won(k).l}});
+ gs.sort(function(a,b){return b.l-a.l||a.n.localeCompare(b.n,"th")});
+ var max=gs.length?gs[0].l:0,any=ITEMS.some(function(i){var d=D.items[i[0]];return d&&d.status==="sold"});
+ var h='<h2>🏅 อันดับเงินคงเหลือ</h2><div class="box scroll"><table><tr><th>#</th><th>กลุ่ม</th><th>เงินคงเหลือ</th><th>สินค้าที่ได้</th>'+(TCH?'<th></th>':'')+'</tr>';
+ gs.forEach(function(g,i){var t=any&&g.l===max;
+  h+='<tr class="'+(t?"top1":"")+'"><td>'+(i+1)+'</td><td>'+esc(g.r)+' '+esc(g.n)+(t?' ⭐ คะแนนพิเศษ':'')+'</td><td>'+g.l.toLocaleString("th-TH")+' ฿</td><td>'+(g.w.length?esc(g.w.join(", ")):"-")+'</td>'+(TCH?'<td><button class="sec" data-act="delg" data-id="'+g.id+'">ลบ</button></td>':'')+'</tr>'});
+ if(!gs.length)h+='<tr><td colspan="5" class="hint">ยังไม่มีกลุ่มลงทะเบียน</td></tr>';
+ return h+'</table></div><p class="hint">กลุ่มที่เหลือเงินมากที่สุดเมื่อจบการประมูลจะได้คะแนนพิเศษ</p>';
+}
+function reg(){
+ return '<div class="box" style="margin:12px 0"><b>ลงทะเบียนกลุ่ม</b><div class="hint">ชื่อกลุ่มจะถูกล็อกและใช้ตลอดทุกการประมูล แต่ละกลุ่มได้เงิน '+BUDGET.toLocaleString("th-TH")+' ฿</div><select id="room" style="margin-top:8px"><option value="">— เลือกห้อง —</option><option>ม.1/1</option><option>ม.1/2</option><option>ม.1/3</option></select><input id="gname" placeholder="ชื่อกลุ่ม" style="margin-top:8px"><button data-act="reg">ลงทะเบียน</button></div>';
+}
+function render(){
+ var ae=document.activeElement,aid=ae&&ae.id,ss=ae&&ae.selectionStart;
+ $("me").textContent=ME?"👥 "+ME.name+" · เหลือ "+left(ME.gid).toLocaleString("th-TH")+" ฿ 🔒":"ยังไม่ได้ลงทะเบียนกลุ่ม";
+ $("app").innerHTML=(ME?"":reg())+'<h2>📦 สินค้าประมูล</h2><div class="grid">'+ITEMS.map(card).join("")+'</div>'+board();
+ if(aid&&$(aid)){$(aid).focus();try{$(aid).setSelectionRange(ss,ss)}catch(e){}}
+}
+function sched(){cancelAnimationFrame(raf);raf=requestAnimationFrame(render)}
+function setItem(id,p){return db.collection("items").doc(id).set(Object.assign({},D.items[id]||{},{start:itm(id,defOf(id)).start},p))}
+document.addEventListener("input",function(e){var t=e.target,id=t.id||"";if(id.indexOf("rs_")===0)DR[id.slice(3)]=t.value;if(id.indexOf("am_")===0)DA[id.slice(3)]=t.value});
+document.addEventListener("click",function(e){
+ var b=e.target.closest("button[data-act]");if(!b||!db)return;
+ var a=b.dataset.act,id=b.dataset.id;
+ if(a==="reg"){
+  var room=$("room").value,name=$("gname").value.trim();
+  if(!room||!name){toast("เลือกห้องและใส่ชื่อกลุ่มก่อนนะ");return}
+  var ex=Object.keys(D.groups).filter(function(k){return D.groups[k].room===room&&D.groups[k].name.toLowerCase()===name.toLowerCase()})[0];
+  var gid=ex||"g"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+  var go=function(){ME={gid:gid,name:ex?D.groups[ex].name:name,room:room};try{localStorage.setItem("auc-me",JSON.stringify(ME))}catch(e){}render();toast(ex?"เข้าร่วมกลุ่มเดิมแล้ว":"ลงทะเบียนแล้ว")};
+  if(ex)go();else db.collection("groups").doc(gid).set({name:name,room:room,t:Date.now()}).then(go).catch(function(){toast("ลงทะเบียนไม่สำเร็จ ลองใหม่")});
+ }
+ if(a==="reason"){
+  var tx=($("rs_"+id).value||"").trim();if(tx.length<5){toast("เขียนเหตุผลให้ละเอียดอีกนิดนะ");return}
+  db.collection("reasons").doc(id+"_"+ME.gid).set({item:id,gid:ME.gid,name:ME.name,text:tx}).catch(function(){toast("ส่งไม่สำเร็จ ลองใหม่")});
+ }
+ if(a==="bid"){
+  var d=itm(id,defOf(id)),tb=sortBids(id)[0],mn=tb?tb.amount+STEP:d.start,am=Math.floor(Number($("am_"+id).value));
+  if(d.status!=="open"){toast("สินค้านี้ปิดประมูลแล้ว");return}
+  if(!am||am<mn){toast("ต้องประมูลอย่างน้อย "+mn+" ฿");return}
+  if(am>left(ME.gid)){toast("เงินไม่พอ เหลือ "+left(ME.gid)+" ฿");return}
+  delete DA[id];
+  db.collection("bids").doc("b"+Date.now().toString(36)+Math.random().toString(36).slice(2,6)).set({item:id,gid:ME.gid,name:ME.name,amount:am,t:Date.now()}).catch(function(){toast("ประมูลไม่สำเร็จ ลองใหม่")});
+ }
+ if(!TCH)return;
+ if(a==="open"){var s=Number($("st_"+id).value);setItem(id,{start:s>0?s:defOf(id),status:"open"})}
+ if(a==="close"){
+  var w=null,bs=sortBids(id);
+  for(var k=0;k<bs.length;k++){if(left(bs[k].gid)>=bs[k].amount){w=bs[k];break}}
+  setItem(id,{status:w?"sold":"unsold",winner:w?w.gid:"",winnerName:w?w.name:"",price:w?w.amount:0});
+ }
+ if(a==="reset"){
+  setItem(id,{status:"wait",winner:"",winnerName:"",price:0});
+  D.bids.filter(function(x){return x.item===id}).forEach(function(x){db.collection("bids").doc(x.id).delete()});
+  Object.keys(D.reasons).filter(function(k){return k.indexOf(id+"_")===0}).forEach(function(k){db.collection("reasons").doc(k).delete()});
+ }
+ if(a==="delg"){if(confirm("ลบกลุ่มนี้ออกจากระบบ?"))db.collection("groups").doc(id).delete()}
+});
+document.addEventListener("change",function(e){var t=e.target;if(TCH&&db&&t.dataset.act==="start"){var s=Number(t.value);if(s>0)setItem(t.dataset.id,{start:s})}});
+(async function(){
+ var cl=window.claude;
+ if(!cl||!cl.use){$("conn").textContent="เปิดหน้านี้จากลิงก์ที่ครูแชร์เท่านั้นนะ";render();return}
+ try{
+  db=await cl.use("db");var u=await cl.use("user");
+  if(!db){$("conn").textContent="ยังเชื่อมต่อระบบไม่ได้ ลองลงชื่อเข้าใช้แล้วเปิดใหม่";render();return}
+  TCH=!!(u&&await u.canEdit());
+  $("conn").textContent=TCH?"☁️ เชื่อมต่อแล้ว (โหมดครู: เปิด/ปิดประมูลได้)":"☁️ เชื่อมต่อแล้ว ราคาอัปเดตอัตโนมัติ";
+  db.collection("items").onSnapshot(function(q){D.items={};q.docs.forEach(function(x){D.items[x.id]=x.data()});sched()},function(){});
+  db.collection("bids").onSnapshot(function(q){D.bids=q.docs.map(function(x){var d=x.data();d.id=x.id;return d});sched()},function(){});
+  db.collection("groups").onSnapshot(function(q){D.groups={};q.docs.forEach(function(x){D.groups[x.id]=x.data()});if(ME&&!D.groups[ME.gid]&&q.docs.length){ME=null;try{localStorage.removeItem("auc-me")}catch(e){}}sched()},function(){});
+  db.collection("reasons").onSnapshot(function(q){D.reasons={};q.docs.forEach(function(x){D.reasons[x.id]=x.data()});sched()},function(){});
+ }catch(e){$("conn").textContent="เชื่อมต่อไม่สำเร็จ ลองรีเฟรชหน้านี้"}
+ render();
+})();
+render();
+</script>
+</body></html>
